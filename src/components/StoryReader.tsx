@@ -57,27 +57,67 @@ export default function StoryReader({ pages, childName, title }: Props) {
         audioRef.current.pause();
       } catch {}
     }
+    // Also cancel browser speech synthesis
+    if (typeof speechSynthesis !== 'undefined') {
+      speechSynthesis.cancel();
+    }
     setSpeaking(false);
+  }
+
+  function speakWithBrowserTTS(text: string) {
+    if (typeof speechSynthesis === 'undefined') {
+      console.error("Speech synthesis not supported");
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9; // Slightly slower for children
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+
+    speechSynthesis.speak(utterance);
+    setAutoPlay(true);
   }
 
   async function speak(text: string) {
     cancelSpeech();
-    
+
     try {
-      // Initialize audio element with iOS-friendly settings
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-        // iOS Safari specific settings
-        audioRef.current.preload = "none"; // Don't preload on iOS
-        (audioRef.current as any).playsInline = true; // Prevent fullscreen on iOS
-      }
-      
-      // Reset audio element for each new playback
-      audioRef.current.currentTime = 0;
-      
-      // Use regular TTS audio (no alignment needed since highlighting is disabled)
-      const src = `/api/tts?text=${encodeURIComponent(text)}`;
-      audioRef.current.src = src;
+      // Check if TTS API is available first
+      const ttsResponse = await fetch(`/api/tts?text=${encodeURIComponent(text)}`);
+
+      if (ttsResponse.ok) {
+        const contentType = ttsResponse.headers.get('content-type');
+
+        // Check if we got a fallback response (JSON) instead of audio
+        if (contentType?.includes('application/json')) {
+          const fallbackData = await ttsResponse.json();
+          if (fallbackData.useFallback) {
+            // Use browser's built-in speech synthesis
+            console.log("Using browser speech synthesis fallback");
+            return speakWithBrowserTTS(text);
+          }
+        }
+
+        // We have audio data, use normal audio playback
+        // Initialize audio element with iOS-friendly settings
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+          // iOS Safari specific settings
+          audioRef.current.preload = "none"; // Don't preload on iOS
+          (audioRef.current as any).playsInline = true; // Prevent fullscreen on iOS
+        }
+
+        // Reset audio element for each new playback
+        audioRef.current.currentTime = 0;
+
+        // Use regular TTS audio
+        const src = `/api/tts?text=${encodeURIComponent(text)}`;
+        audioRef.current.src = src;
       
       // Set up event handlers before loading
       audioRef.current.onended = () => {
@@ -126,15 +166,17 @@ export default function StoryReader({ pages, childName, title }: Props) {
       await audioRef.current.play();
       setSpeaking(true);
       setAutoPlay(true);
-      
-    } catch (error) {
-      console.error("Audio playback failed:", error);
-      setSpeaking(false);
-      
-      // Show user-friendly error message for iOS
-      if (typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        console.warn("iOS detected: Audio requires user interaction. Please tap the play button.");
+
+      } else {
+        // TTS API returned error status, use browser fallback
+        console.log("TTS API unavailable, using browser speech synthesis");
+        return speakWithBrowserTTS(text);
       }
+
+    } catch (error) {
+      console.error("TTS API failed, falling back to browser speech:", error);
+      // Fallback to browser speech synthesis
+      speakWithBrowserTTS(text);
     }
   }
 

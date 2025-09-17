@@ -16,7 +16,15 @@ export async function GET(request: Request) {
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
-    return new Response("Server misconfigured: ELEVENLABS_API_KEY is missing", { status: 500 });
+    // Fallback to browser's built-in speech synthesis when no API key is configured
+    console.warn("ELEVENLABS_API_KEY not configured, returning fallback response");
+    return new Response(JSON.stringify({
+      useFallback: true,
+      message: "Using browser speech synthesis fallback"
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   // Check if client wants word-level timing data
