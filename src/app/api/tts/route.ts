@@ -15,12 +15,25 @@ export async function GET(request: Request) {
   }
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
+  
+  // Debug logging for environment variables
+  console.log("Environment check:", {
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey ? apiKey.length : 0,
+    voiceId: voiceId,
+    environment: process.env.NODE_ENV || "unknown"
+  });
+  
   if (!apiKey) {
     // Fallback to browser's built-in speech synthesis when no API key is configured
     console.warn("ELEVENLABS_API_KEY not configured, returning fallback response");
     return new Response(JSON.stringify({
       useFallback: true,
-      message: "Using browser speech synthesis fallback"
+      message: "ElevenLabs API key not found - using browser speech synthesis fallback",
+      debug: {
+        environment: process.env.NODE_ENV,
+        hasKey: false
+      }
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }

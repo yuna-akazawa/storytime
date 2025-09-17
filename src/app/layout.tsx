@@ -83,12 +83,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               background: white;
             }
             
-            /* Desktop styles */
+            /* Desktop styles - full width and height */
             @media (min-width: 1025px) {
+              html, body {
+                overflow: hidden; /* Prevent any scrolling */
+              }
+              
               body {
-                padding: 24px;
-                max-width: 820px;
-                margin: 0 auto;
+                padding: 0; /* Remove padding to prevent overflow */
+                width: 100%;
+                height: 100vh;
+                margin: 0;
               }
             }
             

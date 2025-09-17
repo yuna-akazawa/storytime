@@ -678,13 +678,17 @@ export default function StoryReader({ pages, childName, title }: Props) {
           display: "grid", 
           gridTemplateColumns: "1fr", 
           gridTemplateRows: "auto 1fr",
-          gap: 12, 
+          gap: 8, // Reduced gap to save space
           alignItems: "stretch", 
           position: "relative",
-          height: "100dvh", // Dynamic viewport height
-          padding: "8px",
+          height: "100vh", // Use viewport height
+          width: "100vw", // Use viewport width
+          padding: "4px", // Reduced padding
           maxHeight: "100vh",
-          overflow: "hidden"
+          maxWidth: "100vw",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          margin: 0
         }}
         onTouchStart={onTouchStart} 
         onTouchEnd={onTouchEnd}
@@ -702,7 +706,7 @@ export default function StoryReader({ pages, childName, title }: Props) {
         <img src="/icons/close.svg" alt="Close" width={18} height={18} />
       </Link>
       {/* Left: text column */}
-      <div style={{ display: "flex", flexDirection: "column", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px 24px", minHeight: 480 }}>
+      <div style={{ display: "flex", flexDirection: "column", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", height: "100%" }}>
         {/* Title */}
         {typeof title === "string" && title.length > 0 ? (
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#7c3aed", marginBottom: 16 }}>{title}</h2>
@@ -710,7 +714,7 @@ export default function StoryReader({ pages, childName, title }: Props) {
 
         {/* Page text with word highlighting */}
         <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-          <div data-allow-select style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 16 }}>
+          <div data-allow-select style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 20 }}>
             {wordTimings.length > 0 ? (
               // Render with word-level highlighting
               wordTimings.map((wordData, i) => (
