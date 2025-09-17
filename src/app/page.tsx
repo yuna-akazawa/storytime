@@ -212,7 +212,9 @@ export default function HomePage() {
         gap: 24,
         marginTop: 40
       }}>
-        {stories.map((s) => {
+        {stories.filter(s => s.languageCode === "en").filter((story, index, arr) => 
+          arr.findIndex(s => s.slug === story.slug) === index
+        ).map((s) => {
           const href = `/read/${encodeURIComponent(s.slug)}?name=${encodeURIComponent(childName || "")}`;
           const thumbnailImage = s.pages[0]?.imageUrl || "/images/placeholder.svg";
           

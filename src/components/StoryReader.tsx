@@ -15,6 +15,8 @@ type Props = {
   pages: PageData[] | string[]; // backward compat
   childName: string;
   title?: string;
+  voiceId?: string; // ElevenLabs voice ID for TTS
+  languageSelector?: React.ReactNode; // Optional language selector component
 };
 
 /**
@@ -22,7 +24,7 @@ type Props = {
  * iPad Safari requires a user gesture to start audio: the "Read to me" button.
  * You can swap in a cloud TTS later and just feed the per-page audio instead.
  */
-export default function StoryReader({ pages, childName, title }: Props) {
+export default function StoryReader({ pages, childName, title, voiceId, languageSelector }: Props) {
   const [index, setIndex] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -381,8 +383,9 @@ export default function StoryReader({ pages, childName, title }: Props) {
         
         if (!alignmentData) {
           // Fetch with timeout if not cached
+          const ttsUrl = `/api/tts?text=${encodeURIComponent(text)}&alignment=true${voiceId ? `&voiceId=${voiceId}` : ''}`;
           const alignmentResponse = await Promise.race([
-            fetch(`/api/tts?text=${encodeURIComponent(text)}&alignment=true`),
+            fetch(ttsUrl),
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3s timeout
           ]) as Response;
           
@@ -416,7 +419,7 @@ export default function StoryReader({ pages, childName, title }: Props) {
       // Fallback to regular audio if alignment failed
       if (!useAlignment) {
         console.log('Using fallback estimated timing for highlighting');
-        const src = `/api/tts?text=${encodeURIComponent(text)}`;
+        const src = `/api/tts?text=${encodeURIComponent(text)}${voiceId ? `&voiceId=${voiceId}` : ''}`;
         audioRef.current.src = src;
         
         // Create better estimated word timings based on word length and speech patterns
@@ -529,27 +532,10 @@ export default function StoryReader({ pages, childName, title }: Props) {
     }
 
     const startFirstPage = async () => {
-      const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (!isIOS && isDesktop()) {
-        // On desktop, auto-start the first page immediately
-        const firstPage = renderedPages[0];
-        if (firstPage?.text) {
-          try {
-            console.log("Auto-starting story playback on desktop");
-            await speak(firstPage.text);
-            setAutoPlay(true);
-            hasAutoStartedRef.current = true;
-          } catch (error) {
-            console.log("Autoplay failed, user will need to manually start:", error);
-          }
-        }
-      } else {
-        // On mobile/iOS, just enable autoplay for when user taps play button
-        console.log("Mobile/iOS detected - enabling autoplay for manual use");
-        setAutoPlay(true);
-        hasAutoStartedRef.current = true;
-      }
+      // Don't auto-start audio - require user interaction on all devices
+      console.log("Story loaded - waiting for user interaction to start audio");
+      setAutoPlay(true);
+      hasAutoStartedRef.current = true;
     };
 
     // Small delay to ensure component is fully mounted
@@ -601,7 +587,8 @@ export default function StoryReader({ pages, childName, title }: Props) {
         const nextCacheKey = nextPage.text.trim();
         if (!alignmentCache.has(nextCacheKey)) {
           // Pre-fetch alignment data in background
-          fetch(`/api/tts?text=${encodeURIComponent(nextPage.text)}&alignment=true`)
+          const preCacheUrl = `/api/tts?text=${encodeURIComponent(nextPage.text)}&alignment=true${voiceId ? `&voiceId=${voiceId}` : ''}`;
+          fetch(preCacheUrl)
             .then(response => {
               if (response.ok) {
                 return response.json();
@@ -740,10 +727,15 @@ export default function StoryReader({ pages, childName, title }: Props) {
           </div>
       </div>
 
-        {/* Footer row: pagination left, controls right */}
+        {/* Footer row: language selector left, controls right */}
         <div style={{ display: "flex", alignItems: "center", marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: "#6b7280" }}>page {index + 1} of {renderedPages.length}</div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {/* Language selector on the left */}
+          <div>
+            {languageSelector}
+          </div>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Pagination just left of the back button */}
+            <div style={{ fontSize: 12, color: "#6b7280", marginRight: 8 }}>page {index + 1} of {renderedPages.length}</div>
         <button
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
               onTouchStart={handleButtonTouchStart}

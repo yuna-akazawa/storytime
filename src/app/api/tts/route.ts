@@ -4,10 +4,10 @@
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const text = url.searchParams.get("text") || "";
-  // Use Clara's voice consistently across the entire app
+  // Support language-specific voice IDs, with fallback to environment or Clara's voice
   const envVoice = process.env.ELEVENLABS_VOICE_ID;
-  const voiceId = url.searchParams.get("voiceId") || envVoice || "2OEeJcYw2f3bWMzzjVMU"; // Clara's voice
-  // Fixed voice settings for consistent speech across all pages
+  const voiceId = url.searchParams.get("voiceId") || envVoice || "2OEeJcYw2f3bWMzzjVMU"; // Clara's voice as fallback
+  // Use multilingual model to support multiple languages
   const modelId = url.searchParams.get("modelId") || "eleven_multilingual_v2";
 
   if (!text) {
