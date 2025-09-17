@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.turbo/
+.vercel/
+dist/
+build/
+coverage/
+**/*.log
+
+
+# Extra safety: ignore any adjacent Palette folders from context
+../*palette*/
+../*Palette*/
+../getpalette-ai*/

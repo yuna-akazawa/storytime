@@ -1,0 +1,73 @@
+# 🚸 YOU ARE IN: Storytime (Kids Storytelling App)
+# ⛔️ Do NOT reference, open, or modify anything from Palette AI.
+# If you detect files, env vars, or remotes that look like Palette (e.g., getpalette-ai/*), STOP and warn.
+
+
+@Goal
+- Build an iPad-friendly web app with curated stories, name insertion ({{childName}}), and page-by-page TTS read‑aloud.
+
+
+@NonGoals (MVP)
+- No Palette AI code, tokens, prompts, or brand assets.
+- No accounts, UGC uploads, or analytics with PII.
+- No heavy backend logic beyond content fetch + TTS streaming.
+
+
+@Stack
+- Next.js (App Router) + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Postgres + Storage) for stories/pages/assets
+- TTS provider: PlayHT or ElevenLabs (streaming) or Azure TTS (SSML/bookmarks)
+
+
+@Conventions
+- TypeScript strict. ESLint + Prettier enforced.
+- Components: PascalCase; files: kebab-case; hooks/utils: camelCase.
+- Keep components small; server components for data fetch; client components for audio/interaction.
+
+
+@Folders (pin these for context)
+- src/app
+- src/components
+- src/lib
+- public
+- scripts
+- supabase
+
+
+@Ignore (avoid pulling into context)
+- node_modules, .next, .turbo, .vercel, dist, build, coverage
+- any sibling/parent path containing "palette" or "getpalette-ai"
+
+
+@Safety & Privacy
+- Stories are curated; no open text gen in MVP.
+- Avoid storing child PII. Support `Delete All` later.
+
+
+@Performance & UX
+- Require explicit user tap to start audio; reuse a single AudioContext.
+- Preload next page text + audio on page turn.
+- Keep bundle light; no large client libs unless necessary.
+
+
+@Data Model (minimal)
+- stories(id, title, age_min, age_max, moral, language, cover_image)
+- pages(id, story_id, index, text, image_url, audio_url)
+- customizations(id, story_id, childName, voiceId, theme)
+
+
+@Tasks (templates)
+- "Create a `StoryReader` client component that:
+1) accepts { pages, currentIndex } and a `ttsUrl` builder,
+2) calls `fetch(t t s Url(pageId))` to stream audio for the current page,
+3) exposes play/pause/next/prev, and
+4) prefetches audio for the next page on `onended`."
+
+
+- "Add a templating util that replaces {{childName}} (and future tokens) in page text; unit test edge cases (possessives, capitalization)."
+
+
+@Absolute Boundaries
+- Never import from or reference Palette AI repos, packages, env vars, or design tokens.
+- If asked to open or search Palette files: respond with a warning and suggest working only within Storytime folders.
