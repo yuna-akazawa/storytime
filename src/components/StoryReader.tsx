@@ -184,10 +184,16 @@ export default function StoryReader({ pages, childName, title }: Props) {
     cancelSpeech();
     
     try {
-      // For faster page turns, use regular audio with simple word highlighting fallback
+      // Initialize audio element with iOS-friendly settings
       if (!audioRef.current) {
         audioRef.current = new Audio();
+        // iOS Safari specific settings
+        audioRef.current.preload = "none"; // Don't preload on iOS
+        (audioRef.current as any).playsInline = true; // Prevent fullscreen on iOS
       }
+      
+      // Reset audio element for each new playback
+      audioRef.current.currentTime = 0;
       
       // Try alignment first, but don't block on it
       let useAlignment = false;
@@ -268,8 +274,20 @@ export default function StoryReader({ pages, childName, title }: Props) {
         setWordTimings(estimatedTimings);
       }
       
-      // Set consistent playback rate
-      audioRef.current.playbackRate = 0.95;
+      // Set up event handlers before loading
+      audioRef.current.onended = () => {
+        setSpeaking(false);
+        setCurrentWordIndex(-1);
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      };
+      
+      audioRef.current.onerror = (e) => {
+        console.error("Audio error:", e);
+        setSpeaking(false);
+        setCurrentWordIndex(-1);
+      };
       
       // Set up word highlighting during playback
       audioRef.current.ontimeupdate = () => {
@@ -283,23 +301,52 @@ export default function StoryReader({ pages, childName, title }: Props) {
         }
       };
       
+      // iOS-specific: Wait for the audio to be ready before playing
+      const playAudio = () => {
+        return new Promise<void>((resolve, reject) => {
+          if (!audioRef.current) {
+            reject(new Error("No audio element"));
+            return;
+          }
+          
+          const audio = audioRef.current;
+          
+          // Set playback rate after loading
+          const onCanPlay = () => {
+            audio.playbackRate = 0.95;
+            audio.removeEventListener('canplay', onCanPlay);
+            audio.removeEventListener('error', onError);
+            resolve();
+          };
+          
+          const onError = (e: any) => {
+            audio.removeEventListener('canplay', onCanPlay);
+            audio.removeEventListener('error', onError);
+            reject(e);
+          };
+          
+          audio.addEventListener('canplay', onCanPlay);
+          audio.addEventListener('error', onError);
+          
+          // Load the audio
+          audio.load();
+        });
+      };
+      
+      // Load and play the audio
+      await playAudio();
       await audioRef.current.play();
       setSpeaking(true);
-      audioRef.current.onended = () => {
-        setSpeaking(false);
-        setCurrentWordIndex(-1);
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      };
-      audioRef.current.onerror = () => {
-        setSpeaking(false);
-        setCurrentWordIndex(-1);
-      };
       setAutoPlay(true);
-    } catch (_err) {
-      console.warn("Audio playback failed; waiting for user gesture to start.");
+      
+    } catch (error) {
+      console.error("Audio playback failed:", error);
       setSpeaking(false);
+      
+      // Show user-friendly error message for iOS
+      if (typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        console.warn("iOS detected: Audio requires user interaction. Please tap the play button.");
+      }
     }
   }
 
@@ -317,8 +364,17 @@ export default function StoryReader({ pages, childName, title }: Props) {
   }, []);
 
   // Autoplay when page index changes (after first user gesture)
+  // Disabled on iOS devices due to autoplay restrictions
   useEffect(() => {
     if (!autoPlay) return;
+    
+    // Skip autoplay on iOS devices
+    const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS && index > 0) {
+      // On iOS, don't autoplay when changing pages - user must tap play button
+      return;
+    }
+    
     const page = current;
     if (page && page.text) {
       speak(page.text);
@@ -465,20 +521,28 @@ export default function StoryReader({ pages, childName, title }: Props) {
               </button>
             )}
             <button
-              onClick={() => {
-                // advance page
-                const nextIdx = Math.min(renderedPages.length - 1, index + 1);
-                cancelSpeech();
-                setIndex(nextIdx);
-                // On desktop, auto-play immediately even if user hasn't pressed Read yet
-                if (!autoPlay && isDesktop()) {
-                  const nextPage = renderedPages[nextIdx];
-                  if (nextPage?.text) {
-                    speak(nextPage.text);
-                    setAutoPlay(true);
-                  }
-                }
-              }}
+                  onClick={() => {
+                    // advance page
+                    const nextIdx = Math.min(renderedPages.length - 1, index + 1);
+                    cancelSpeech();
+                    setIndex(nextIdx);
+                    
+                    // Check if we're on iOS
+                    const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    
+                    // On desktop (and first interaction), auto-play immediately
+                    if (!autoPlay && isDesktop() && !isIOS) {
+                      const nextPage = renderedPages[nextIdx];
+                      if (nextPage?.text) {
+                        speak(nextPage.text);
+                        setAutoPlay(true);
+                      }
+                    }
+                    // On iOS, just enable autoplay for manual play button use
+                    else if (isIOS && !autoPlay) {
+                      setAutoPlay(true);
+                    }
+                  }}
               style={iconBtn}
               aria-label="Next"
               disabled={index === renderedPages.length - 1}
