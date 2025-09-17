@@ -7,8 +7,6 @@ import { Atkinson_Hyperlegible } from "next/font/google";
 const atkinson = Atkinson_Hyperlegible({ subsets: ["latin"], weight: ["400", "700"] });
 import { applyTemplate } from "../lib/template";
 
-// Simple cache for alignment data to speed up page turns
-const alignmentCache = new Map<string, any>();
 
 type PageData = { text: string; imageUrl: string };
 type Props = {
@@ -30,11 +28,6 @@ export default function StoryReader({ pages, childName, title }: Props) {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   
-  // Word highlighting state
-  const [wordTimings, setWordTimings] = useState<Array<{word: string, start: number, end: number}>>([]);
-  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-  const animationFrameRef = useRef<number | null>(null);
-  const lastUpdateTimeRef = useRef<number>(0);
 
   function isDesktop(): boolean {
     if (typeof navigator === "undefined") return false;
@@ -43,111 +36,6 @@ export default function StoryReader({ pages, childName, title }: Props) {
     return !isMobile;
   }
 
-  function extractWordsFromAlignment(alignment: any, text: string): Array<{word: string, start: number, end: number}> {
-    // Convert character-level timing to word-level timing
-    const words: Array<{word: string, start: number, end: number}> = [];
-    const characters = alignment.characters || [];
-    const startTimes = alignment.character_start_times_seconds || [];
-    const endTimes = alignment.character_end_times_seconds || [];
-    
-    let currentWord = '';
-    let wordStartTime = 0;
-    let wordStartIndex = -1;
-    
-    for (let i = 0; i < characters.length; i++) {
-      const char = characters[i];
-      const startTime = startTimes[i] || 0;
-      const endTime = endTimes[i] || 0;
-      
-      // Check if this character should end the current word
-      const isWordSeparator = char === ' ' || char === '\n' || char === '\t';
-      const isEndOfText = i === characters.length - 1;
-      
-      if (isWordSeparator || isEndOfText) {
-        // End of word (or end of text)
-        if (isEndOfText && !isWordSeparator) {
-          currentWord += char; // Include the last character if it's not a separator
-        }
-        
-        if (currentWord.trim().length > 0) {
-          const wordEndTime = isEndOfText ? endTime : endTimes[i - 1] || 0;
-          
-          words.push({
-            word: currentWord.trim(),
-            start: wordStartTime,
-            end: wordEndTime
-          });
-        }
-        
-        // Reset for next word
-        currentWord = '';
-        wordStartIndex = -1;
-      } else {
-        // Building a word - include letters, numbers, and punctuation that's part of words
-        if (wordStartIndex === -1) {
-          wordStartIndex = i;
-          wordStartTime = startTime;
-        }
-        currentWord += char;
-      }
-    }
-    
-    return words;
-  }
-
-  function updateWordHighlight(currentTimeSeconds: number) {
-    if (wordTimings.length === 0) return;
-    
-    // Find the best word to highlight based on current time
-    let bestIndex = -1;
-    
-    // First, try to find exact matches within timing windows
-    for (let i = 0; i < wordTimings.length; i++) {
-      const word = wordTimings[i];
-      // More generous timing window for exact matches
-      if (currentTimeSeconds >= word.start - 0.15 && currentTimeSeconds <= word.end + 0.25) {
-        bestIndex = i;
-        break;
-      }
-    }
-    
-    // If no exact match, find the word that should be playing now or next
-    if (bestIndex === -1) {
-      for (let i = 0; i < wordTimings.length; i++) {
-        const word = wordTimings[i];
-        
-        // If we're before this word but close to it, highlight it
-        if (currentTimeSeconds < word.start && word.start - currentTimeSeconds <= 0.3) {
-          bestIndex = i;
-          break;
-        }
-        
-        // If we're past this word but not too far, keep it highlighted
-        if (currentTimeSeconds > word.end && currentTimeSeconds - word.end <= 0.2) {
-          bestIndex = i;
-          // Don't break here, let later words override
-        }
-      }
-    }
-    
-    // If still no match, find the closest word by position in time
-    if (bestIndex === -1) {
-      let minDistance = Infinity;
-      for (let i = 0; i < wordTimings.length; i++) {
-        const word = wordTimings[i];
-        const distance = Math.abs(currentTimeSeconds - (word.start + word.end) / 2);
-        if (distance < minDistance && distance <= 1.0) { // Within 1 second
-          minDistance = distance;
-          bestIndex = i;
-        }
-      }
-    }
-    
-    // Update highlighting if we found a different word
-    if (bestIndex !== currentWordIndex) {
-      setCurrentWordIndex(bestIndex);
-    }
-  }
 
   const normalizedPages: PageData[] = useMemo(() => {
     if (typeof pages[0] === "string") {
@@ -170,17 +58,9 @@ export default function StoryReader({ pages, childName, title }: Props) {
       } catch {}
     }
     setSpeaking(false);
-    setCurrentWordIndex(-1);
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
   }
 
   async function speak(text: string) {
-    // Reset highlighting state
-    setCurrentWordIndex(-1);
-    setWordTimings([]);
-    lastUpdateTimeRef.current = 0;
     cancelSpeech();
     
     try {
@@ -195,110 +75,18 @@ export default function StoryReader({ pages, childName, title }: Props) {
       // Reset audio element for each new playback
       audioRef.current.currentTime = 0;
       
-      // Try alignment first, but don't block on it
-      let useAlignment = false;
-      const cacheKey = text.trim();
-      
-      try {
-        // Check cache first
-        let alignmentData = alignmentCache.get(cacheKey);
-        
-        if (!alignmentData) {
-          // Fetch with timeout if not cached
-          const alignmentResponse = await Promise.race([
-            fetch(`/api/tts?text=${encodeURIComponent(text)}&alignment=true`),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3s timeout
-          ]) as Response;
-          
-          if (alignmentResponse.ok) {
-            alignmentData = await alignmentResponse.json();
-            // Cache the result if it has proper alignment data
-            if (alignmentData?.alignment?.characters && alignmentData?.audio_base64) {
-              alignmentCache.set(cacheKey, alignmentData);
-            }
-          }
-        }
-        
-        // Check if we have valid alignment data
-        if (alignmentData?.alignment?.characters && alignmentData?.audio_base64) {
-          const words = extractWordsFromAlignment(alignmentData.alignment, text);
-          if (words.length > 0) {
-            console.log('Using ElevenLabs alignment for precise highlighting');
-            setWordTimings(words);
-            
-            // Convert base64 audio to blob URL
-            const audioBlob = new Blob([Uint8Array.from(atob(alignmentData.audio_base64), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            audioRef.current.src = audioUrl;
-            useAlignment = true;
-          }
-        }
-      } catch (error) {
-        console.log('Alignment request failed:', error);
-      }
-      
-      // Fallback to regular audio if alignment failed
-      if (!useAlignment) {
-        console.log('Using fallback estimated timing for highlighting');
-        const src = `/api/tts?text=${encodeURIComponent(text)}`;
-        audioRef.current.src = src;
-        
-        // Create better estimated word timings based on word length and speech patterns
-        const words = text.split(/\s+/).filter(w => w.trim().length > 0);
-        const baseWordsPerSecond = 2.2; // Slightly slower for better accuracy
-        let currentTime = 0.3; // Small delay at start
-        
-        const estimatedTimings = words.map((word, i) => {
-          // Adjust timing based on word characteristics
-          let wordDuration = 1 / baseWordsPerSecond;
-          
-          // Longer words take more time
-          if (word.length > 6) wordDuration *= 1.3;
-          else if (word.length < 3) wordDuration *= 0.8;
-          
-          // Punctuation adds a pause
-          if (word.match(/[.!?]$/)) wordDuration *= 1.4;
-          else if (word.match(/[,;:]$/)) wordDuration *= 1.2;
-          
-          const startTime = currentTime;
-          const endTime = currentTime + wordDuration;
-          currentTime = endTime + 0.05; // Small gap between words
-          
-          return {
-            word: word,
-            start: startTime,
-            end: endTime
-          };
-        });
-        
-        setWordTimings(estimatedTimings);
-      }
+      // Use regular TTS audio (no alignment needed since highlighting is disabled)
+      const src = `/api/tts?text=${encodeURIComponent(text)}`;
+      audioRef.current.src = src;
       
       // Set up event handlers before loading
       audioRef.current.onended = () => {
         setSpeaking(false);
-        setCurrentWordIndex(-1);
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
       };
       
       audioRef.current.onerror = (e) => {
         console.error("Audio error:", e);
         setSpeaking(false);
-        setCurrentWordIndex(-1);
-      };
-      
-      // Set up word highlighting during playback
-      audioRef.current.ontimeupdate = () => {
-        if (audioRef.current && wordTimings.length > 0) {
-          const currentTime = audioRef.current.currentTime;
-          // Update highlighting more frequently for better responsiveness
-          if (currentTime - lastUpdateTimeRef.current >= 0.02) { // 50fps updates
-            updateWordHighlight(currentTime);
-            lastUpdateTimeRef.current = currentTime;
-          }
-        }
       };
       
       // iOS-specific: Wait for the audio to be ready before playing
@@ -381,33 +169,6 @@ export default function StoryReader({ pages, childName, title }: Props) {
     }
   }, [index, autoPlay, current]);
 
-  // Pre-cache next page audio for faster page turns
-  useEffect(() => {
-    const nextIndex = index + 1;
-    if (nextIndex < renderedPages.length) {
-      const nextPage = renderedPages[nextIndex];
-      if (nextPage?.text) {
-        const nextCacheKey = nextPage.text.trim();
-        if (!alignmentCache.has(nextCacheKey)) {
-          // Pre-fetch alignment data in background
-          fetch(`/api/tts?text=${encodeURIComponent(nextPage.text)}&alignment=true`)
-            .then(response => {
-              if (response.ok) {
-                return response.json();
-              }
-            })
-            .then(alignmentData => {
-              if (alignmentData?.alignment && alignmentData?.audio_base64) {
-                alignmentCache.set(nextCacheKey, alignmentData);
-              }
-            })
-            .catch(() => {
-              // Ignore pre-cache failures
-            });
-        }
-      }
-    }
-  }, [index, renderedPages]);
 
   function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     const t = e.touches[0];
@@ -465,31 +226,10 @@ export default function StoryReader({ pages, childName, title }: Props) {
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#7c3aed", marginBottom: 16 }}>{title}</h2>
         ) : <div style={{ height: 8 }} />}
 
-        {/* Page text with word highlighting */}
+        {/* Page text */}
         <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 16 }}>
-            {wordTimings.length > 0 ? (
-              // Render with word-level highlighting
-              wordTimings.map((wordData, i) => (
-                <span
-                  key={i}
-                  style={{
-                    backgroundColor: i === currentWordIndex ? "#fef3c7" : "transparent", // Yellow highlight
-                    color: i === currentWordIndex ? "#92400e" : "inherit", // Darker text when highlighted
-                    padding: "2px 1px",
-                    borderRadius: "3px",
-                    transition: "all 0.15s ease-in-out",
-                    boxShadow: i === currentWordIndex ? "0 0 0 2px #fbbf24" : "none", // Subtle glow
-                  }}
-                >
-                  {wordData.word}
-                  {i < wordTimings.length - 1 ? " " : ""}
-                </span>
-              ))
-            ) : (
-              // Fallback to regular text if no timing data
-              current.text
-            )}
+            {current.text}
           </div>
         </div>
 
