@@ -69,12 +69,21 @@ export default function HomePage() {
   };
 
   return (
-    <main style={{ 
-      padding: "40px 20px",
-      maxWidth: "1200px",
-      margin: "0 auto",
-      fontFamily: "system-ui, -apple-system, sans-serif"
-    }}>
+    <>
+      {/* Landscape orientation warning overlay */}
+      <div className="landscape-warning" style={{ display: "none" }}>
+        <div style={{ fontSize: "64px", marginBottom: "20px" }}>📱</div>
+        <h2>Please rotate your device</h2>
+        <p>This app is designed for portrait mode.<br />Please turn your device upright to continue.</p>
+      </div>
+
+      <main style={{ 
+        padding: "40px 20px",
+        maxWidth: "1200px",
+        margin: "0 auto",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        minHeight: "100vh"
+      }}>
       {/* Header */}
       <div style={{ marginBottom: 40 }}>
         <h1 style={{ 
@@ -283,5 +292,6 @@ export default function HomePage() {
         })}
       </div>
     </main>
+    </>
   );
 }
