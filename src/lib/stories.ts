@@ -85,7 +85,7 @@ export const stories: Story[] = [
       { text: "After dinner, they take a bath. Evan loves to play with his dinosaur toys in the bath. Ella loves her mermaid toys.", imageUrl: "/images/ella-and-evan/11.png" },
       { text: "After bath, Papa brushes Ella's teeth and get's Ella ready for bed.", imageUrl: "/images/ella-and-evan/12.png" },
       { text: "Mummy reads Evan his favorite dinosaur book, while he drinks his milk.", imageUrl: "/images/ella-and-evan/13.png" },
-      { text: "It's time for Evan to go to bed. He says his goodnight to Ella and goes to sleep.", imageUrl: "/images/ella-and-evan/14.png" },
+      { text: "It's time for Evan to go to bed. Mummy tucks Evan in and gently kisses him goodnight.", imageUrl: "/images/ella-and-evan/14.png" },
     ],
   },
   {
