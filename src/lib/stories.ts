@@ -63,6 +63,31 @@ export const stories: Story[] = [
       { text: "{{childName}}もたすけるひとになれます。ゆうきをだして、おやつをわけたり、こまっているひとをおもいやるきかいをさがしてみましょう。", imageUrl: "/images/helpful-hero-forest/14.png" },
     ],
   },
+
+  {
+    slug: "ella-and-evan",
+    title: "Ella and Evan",
+    language: "English",
+    languageCode: "en",
+    voiceId: "2OEeJcYw2f3bWMzzjVMU", // Clara's voice for English
+    moral: "This is a story about Ella and Evan, two best friends who are always together.",
+    pages: [
+      { text: "This is Ella, she is a very smart and sweet princess, who loves to play with her brother Evan.", imageUrl: "/images/ella-and-evan/01.png" },
+      { text: "This is Evan, he is a very sweet and loving baby, who loves to play with his sister Ella.", imageUrl: "/images/ella-and-evan/02.png" },
+      { text: "In the morning, Ella and Papa takes a bus to school together. They talk about Ella's exciting day at school.", imageUrl: "/images/ella-and-evan/03.png" },
+      { text: "At school, Ella is with her friends and they play and learn together.", imageUrl: "/images/ella-and-evan/04.png" },
+      { text: "In the meantime, Linda, Evan's nanny gets Evan ready for his day.", imageUrl: "/images/ella-and-evan/05.png" },
+      { text: "Linda and Evan go to the park together. Evan loves to go on the swings.", imageUrl: "/images/ella-and-evan/06.png" },
+      { text: "It's time to pick up Ella from school. Evan is so happy to see Ella after school.", imageUrl: "/images/ella-and-evan/07.png" },
+      { text: "They then play in Central Park together and eat some snacks with friends.", imageUrl: "/images/ella-and-evan/08.png" },
+      { text: "Ella and Evan go home together and play with their toys.", imageUrl: "/images/ella-and-evan/09.png" },
+      { text: "Soon, it's time for dinner. Ella and Evan eat together and talk about their day. Today's dinner is beef, rice and asparagus - their favorite!", imageUrl: "/images/ella-and-evan/10.png" },
+      { text: "After dinner, they take a bath. Evan loves to play with his dinosaur toys in the bath. Ella loves her mermaid toys.", imageUrl: "/images/ella-and-evan/11.png" },
+      { text: "After bath, Papa brushes Ella's teeth and get's Ella ready for bed.", imageUrl: "/images/ella-and-evan/12.png" },
+      { text: "Mummy reads Evan his favorite dinosaur book, while he drinks his milk.", imageUrl: "/images/ella-and-evan/13.png" },
+      { text: "It's time for Evan to go to bed. He says his goodnight to Ella and goes to sleep.", imageUrl: "/images/ella-and-evan/14.png" },
+    ],
+  },
   {
     slug: "one-foot-rule-kindness-school",
     title: "The One-Foot Rule at Kindness School",

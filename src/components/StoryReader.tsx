@@ -663,9 +663,9 @@ export default function StoryReader({ pages, childName, title, voiceId, language
         className={`${atkinson.className} story-reader-layout`}
         style={{ 
           display: "grid", 
-          gridTemplateColumns: "1fr", 
-          gridTemplateRows: "auto 1fr",
-          gap: 8, // Reduced gap to save space
+          gridTemplateColumns: "40% 60%", 
+          gridTemplateRows: "1fr",
+          gap: 16, // Gap between text and image columns
           alignItems: "stretch", 
           position: "relative",
           height: "100vh", // Use viewport height
@@ -693,7 +693,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
         <img src="/icons/close.svg" alt="Close" width={18} height={18} />
       </Link>
       {/* Left: text column */}
-      <div style={{ display: "flex", flexDirection: "column", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", height: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px 20px", height: "100%", minHeight: "0" }}>
         {/* Title */}
         {typeof title === "string" && title.length > 0 ? (
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#7c3aed", marginBottom: 16 }}>{title}</h2>
@@ -841,9 +841,9 @@ export default function StoryReader({ pages, childName, title, voiceId, language
       </div>
 
       {/* Right: image column */}
-      <div style={{ display: "flex", alignItems: "stretch" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "0" }}>
         {current.imageUrl ? (
-          <img src={current.imageUrl} alt="Story page illustration" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+          <img src={current.imageUrl} alt="Story page illustration" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 12, border: "1px solid #e5e7eb", maxHeight: "100vh" }} />
         ) : null}
       </div>
     </section>
