@@ -4,7 +4,10 @@
 import React from "react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { Montserrat } from "next/font/google";
 import { stories } from "../lib/stories";
+
+const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 const STORAGE_KEY = "storytime_child_names";
 
@@ -69,7 +72,11 @@ export default function HomePage() {
   };
 
   return (
-    <>
+    <div style={{
+      background: "linear-gradient(15deg, #F9A4A4 0%, #F15DC7 100%)",
+      minHeight: "100vh",
+      width: "100%"
+    }}>
       {/* Landscape orientation warning overlay */}
       <div className="landscape-warning" style={{ display: "none" }}>
         <div style={{ fontSize: "64px", marginBottom: "20px" }}>📱</div>
@@ -77,29 +84,27 @@ export default function HomePage() {
         <p>This app is designed for portrait mode.<br />Please turn your device upright to continue.</p>
       </div>
 
-      <main style={{ 
+      <main className={montserrat.className} style={{ 
         padding: "40px 20px",
         maxWidth: "1200px",
         margin: "0 auto",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        minHeight: "100vh"
+        minHeight: "100vh",
+        position: "relative",
+        color: "#ffffff",
       }}>
       {/* Header */}
-      <div style={{ marginBottom: 40 }}>
+      <div style={{ marginBottom: 12 }}>
         <h1 style={{ 
           fontSize: 48, 
-          fontWeight: 500, 
-          marginBottom: 12,
-          color: "#6366f1",
-          letterSpacing: "-0.025em"
+          fontWeight: 700, 
+          marginBottom: 0,
         }}>
           Welcome to my storytime
         </h1>
         <p style={{ 
           fontSize: 18,
-          color: "#6b7280",
-          marginBottom: 32,
-          lineHeight: 1.6
+          marginBottom: 16,
+          lineHeight: 1.6,
         }}>
           Enter your child's name and pick a story. Make sure you have turned on the volume on your device.
         </p>
@@ -119,7 +124,7 @@ export default function HomePage() {
               style={{ 
                 padding: "12px 16px",
                 fontSize: 16,
-                border: "2px solid #e5e7eb",
+                border: "2px solid #ffffff",
                 borderRadius: 12,
                 outline: "none",
                 transition: "border-color 0.2s",
@@ -229,7 +234,7 @@ export default function HomePage() {
             >
               <div 
                 style={{
-                  background: "#fbbf24", // Yellow background like in the image
+                  background: "#ffffff",
                   borderRadius: 20,
                   padding: 20,
                   cursor: "pointer",
@@ -294,6 +299,6 @@ export default function HomePage() {
         })}
       </div>
     </main>
-    </>
+    </div>
   );
 }
