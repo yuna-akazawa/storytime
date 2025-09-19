@@ -4,10 +4,11 @@
 import React from "react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Montserrat } from "next/font/google";
+import { Montserrat, Nerko_One } from "next/font/google";
 import { stories } from "../lib/stories";
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
+const nerkoOne = Nerko_One({ subsets: ["latin"], weight: ["400"] });
 
 const STORAGE_KEY = "storytime_child_names";
 
@@ -73,7 +74,10 @@ export default function HomePage() {
 
   return (
     <div style={{
-      background: "linear-gradient(15deg, #F9A4A4 0%, #F15DC7 100%)",
+      backgroundImage: "url('/images/bg.png')",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
       minHeight: "100vh",
       width: "100%"
     }}>
@@ -90,17 +94,34 @@ export default function HomePage() {
         margin: "0 auto",
         minHeight: "100vh",
         position: "relative",
-        color: "#ffffff",
+        color: "#ffffff/0.1, backdrop-blur-md",
+        overflowY: "auto",
+        maxHeight: "100vh",
       }}>
       {/* Header */}
-      <div style={{ marginBottom: 12 }}>
-        <h1 style={{ 
-          fontSize: 48, 
-          fontWeight: 700, 
-          marginBottom: 0,
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 16,
         }}>
-          Welcome to my storytime
-        </h1>
+          <h1 className={nerkoOne.className} style={{ 
+            fontSize: 60, 
+            fontWeight: 500, 
+            marginBottom: 0,
+          }}>
+            Welcome to Storytime
+          </h1>
+          <img 
+            src="/images/logo-smiley.svg" 
+            alt="Storytime Logo" 
+            style={{ 
+              width: 60, 
+              height: 60,
+              flexShrink: 0
+            }} 
+          />
+        </div>
         <p style={{ 
           fontSize: 18,
           marginBottom: 16,
@@ -234,7 +255,8 @@ export default function HomePage() {
             >
               <div 
                 style={{
-                  background: "#ffffff",
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(8px)",
                   borderRadius: 20,
                   padding: 20,
                   cursor: "pointer",

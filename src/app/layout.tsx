@@ -5,18 +5,26 @@ export const metadata = {
   title: "Storytime MVP", 
   description: "Kid-friendly storytelling MVP",
   manifest: "/manifest.json",
-  themeColor: "#6366f1",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Storytime"
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    viewportFit: "cover",
-    userScalable: false
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' }
+    ],
+    apple: '/favicon.svg'
   }
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  userScalable: false,
+  themeColor: "#6366f1"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

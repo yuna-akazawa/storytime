@@ -21,7 +21,7 @@ export const stories: Story[] = [
     language: "English",
     languageCode: "en",
     voiceId: "2OEeJcYw2f3bWMzzjVMU", // Clara's voice for English
-    moral: "Inspired by The Good Samaritan, The Helpful Hero teaches you to love your neighbor: be kind and help people in need, even if they are different from you. ",
+    moral: "The Helpful Hero teaches you to love your neighbor: be kind and help people in need.",
     pages: [
       { text: "On a sunny forest path, a little hedgehog named Pip trotted along. He carried a small snack basket and hummed a tune.", imageUrl: "/images/helpful-hero-forest/01.png" },
       { text: "Two naughty raccoons leapt from behind a bush. They grabbed his snacks and knocked Pip into the grass, giving him a boo-boo on his knee.", imageUrl: "/images/helpful-hero-forest/02.png" },
@@ -86,6 +86,29 @@ export const stories: Story[] = [
       { text: "After bath, Papa brushes Ella's teeth and get's Ella ready for bed.", imageUrl: "/images/ella-and-evan/12.png" },
       { text: "Mummy reads Evan his favorite dinosaur book, while he drinks his milk.", imageUrl: "/images/ella-and-evan/13.png" },
       { text: "It's time for Evan to go to bed. Mummy tucks Evan in and gently kisses him goodnight.", imageUrl: "/images/ella-and-evan/14.png" },
+    ],
+  },
+  {
+    slug: "dentist-visit",
+    title: "Princess visits the Dentist",
+    language: "English",
+    languageCode: "en",
+    voiceId: "2OEeJcYw2f3bWMzzjVMU", // Clara's voice for English
+    moral: "Brave checkups keep smiles healthy. Kind helpers and good habits make teeth strong.",
+    pages: [
+      { text: "\"It's time to visit the dentist,\" said Mummy, and she held Princess {{childName}}'s hand.", imageUrl: "/images/dentist-visit/01.png" },
+      { text: "They walked into a bright, friendly room. Princess {{childName}} saw a big cozy chair and a light that looked like a tiny sun.", imageUrl: "/images/dentist-visit/02.png" },
+      { text: "Princess {{childName}} sat on the dentist chair that goes up and down. 'Hi Princess {{childName}}' entered her dentist Dr. Amy with a smile.", imageUrl: "/images/dentist-visit/03.png" },
+      { text: "Dr Amy put a soft bib around her neck to keep her clothes clean. \"What toothpaste flavor do you want—vanilla, chocolate, or strawberry?\"", imageUrl: "/images/dentist-visit/04.png" },
+      { text: "\"Have you been brushing and flossing every day?\" Dr. Amy asked. Princess {{childName}} grinned wide and said, \"Yes!\"", imageUrl: "/images/dentist-visit/05.png" },
+      { text: "\"Open big like a lion,\" said Dr. Amy. She used a tiny mirror to peek at every tooth and a gentle tooth counter to check for sugar bugs.", imageUrl: "/images/dentist-visit/06.png" },
+      { text: "\"Now I'll clean your teeth,\" said Dr. Amy. A tickly cleaner whisked away gunk while a little straw slurped water so Princess {{childName}} stayed comfy.", imageUrl: "/images/dentist-visit/07.png" },
+      { text: "\"Great job!\" said Dr. Amy. \"Your teeth already look shiny.\" Dr. Amy puts strawberry toothpaste on a whirly toothbrush. It made a soft bzzz as it polished each tooth smooth.", imageUrl: "/images/dentist-visit/08.png" },
+      { text: "Princess {{childName}} did a quick rinse in the chair's tiny sink. \"Perfect,\" said Dr. Amy.", imageUrl: "/images/dentist-visit/09.png" },
+      { text: "\"Now for your tooth vitamins,\" said Dr. Amy. She painted on a special fluoride cream that makes enamel strong.", imageUrl: "/images/dentist-visit/10.png" },
+      { text: "\"No food or water for 30 minutes so it can do its magic,\" she explained. Princess {{childName}} nodded bravely.", imageUrl: "/images/dentist-visit/11.png" },
+      { text: "\"All done!\" Dr. Amy gave Princess {{childName}} a prize toy and sparkly stickers. \"Keep up the good brushing and flossing—see you in six months!\" Princess {{childName}} smiles and says, \"Thank you, Dr. Amy!\"", imageUrl: "/images/dentist-visit/12.png" },
+      { text: "As they left, Mummy hugged Princess {{childName}}. \"Good job—I'm so proud of you!\"", imageUrl: "/images/dentist-visit/13.png" }
     ],
   },
   {

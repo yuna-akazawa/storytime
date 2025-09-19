@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Atkinson_Hyperlegible } from "next/font/google";
 const atkinson = Atkinson_Hyperlegible({ subsets: ["latin"], weight: ["400", "700"] });
 import { applyTemplate } from "../lib/template";
+import { RotateCcw, ChevronLeft, ChevronRight, Play, Pause, X } from 'react-feather';
 
 // Simple cache for alignment data to speed up page turns
 const alignmentCache = new Map<string, any>();
@@ -29,6 +30,8 @@ export default function StoryReader({ pages, childName, title, voiceId, language
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [autoPlay, setAutoPlay] = useState(false); // enable autoplay after first user play
+  const [autoScroll, setAutoScroll] = useState(false); // enable auto-scroll after first page
+  const [isPageChanging, setIsPageChanging] = useState(false); // track if we're auto-advancing
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   
@@ -266,92 +269,58 @@ export default function StoryReader({ pages, childName, title, voiceId, language
   function speakWithBrowserTTS(text: string) {
     if (typeof speechSynthesis === 'undefined') {
       console.error("Speech synthesis not supported");
-      return;
+      throw new Error("Speech synthesis not supported");
     }
 
-    // Reset highlighting state
+    // Reset highlighting state (disabled for cost reduction)
     setCurrentWordIndex(-1);
     setWordTimings([]);
     lastUpdateTimeRef.current = 0;
 
-    // Create estimated word timings for browser TTS highlighting
-    console.log('Using browser TTS with estimated timing for highlighting');
-    const words = text.split(/\s+/).filter(w => w.trim().length > 0);
-    const baseWordsPerSecond = 2.0; // Slightly slower for browser TTS
-    let currentTime = 0.2; // Small delay at start
-    
-    const estimatedTimings = words.map((word, i) => {
-      // Adjust timing based on word characteristics
-      let wordDuration = 1 / baseWordsPerSecond;
-      
-      // Longer words take more time
-      if (word.length > 6) wordDuration *= 1.3;
-      else if (word.length < 3) wordDuration *= 0.8;
-      
-      // Punctuation adds a pause
-      if (word.match(/[.!?]$/)) wordDuration *= 1.4;
-      else if (word.match(/[,;:]$/)) wordDuration *= 1.2;
-      
-      const startTime = currentTime;
-      const endTime = currentTime + wordDuration;
-      currentTime = endTime + 0.04; // Small gap between words
-      
-      return {
-        word: word,
-        start: startTime,
-        end: endTime
-      };
-    });
-    
-    setWordTimings(estimatedTimings);
+    console.log('Using browser TTS without text highlighting');
 
+    // Cancel any existing speech
+    speechSynthesis.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9; // Slightly slower for children
+    utterance.rate = 1.1; // Increased from 0.9 to 1.1 for faster reading
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
-    // Create a timer-based highlighting system for browser TTS
-    let highlightTimer: NodeJS.Timeout | null = null;
-    let startTime: number;
-
     utterance.onstart = () => {
       setSpeaking(true);
-      startTime = Date.now();
-      
-      // Start the highlighting timer
-      const updateHighlight = () => {
-        if (!speaking) return; // Stop if no longer speaking
-        
-        const elapsed = (Date.now() - startTime) / 1000; // Convert to seconds
-        updateWordHighlight(elapsed);
-        
-        // Continue updating every 50ms for smooth highlighting
-        highlightTimer = setTimeout(updateHighlight, 50);
-      };
-      
-      updateHighlight();
     };
 
     utterance.onend = () => {
       setSpeaking(false);
       setCurrentWordIndex(-1);
-      if (highlightTimer) {
-        clearTimeout(highlightTimer);
-        highlightTimer = null;
+      
+      // Auto-scroll to next page after TTS finishes (if enabled and not on last page)
+      console.log(`Browser TTS ended. autoScroll: ${autoScroll}, index: ${index}, totalPages: ${renderedPages.length}`);
+      if (autoScroll && index < renderedPages.length - 1) {
+        setTimeout(() => {
+          console.log('Auto-advancing to next page (browser TTS)');
+          setIsPageChanging(true);
+          setIndex(prevIndex => prevIndex + 1);
+        }, 1500); // 1.5 second delay before auto-advance
+      } else {
+        console.log('Auto-advance not triggered - either autoScroll is false or on last page');
       }
     };
 
     utterance.onerror = () => {
       setSpeaking(false);
       setCurrentWordIndex(-1);
-      if (highlightTimer) {
-        clearTimeout(highlightTimer);
-        highlightTimer = null;
-      }
     };
 
-    speechSynthesis.speak(utterance);
-    setAutoPlay(true);
+    try {
+      speechSynthesis.speak(utterance);
+      setAutoPlay(true);
+    } catch (error) {
+      console.error("Failed to start browser TTS:", error);
+      setSpeaking(false);
+      throw error;
+    }
   }
 
   async function speak(text: string) {
@@ -373,85 +342,10 @@ export default function StoryReader({ pages, childName, title, voiceId, language
       // Reset audio element for each new playback
       audioRef.current.currentTime = 0;
       
-      // Try alignment first, but don't block on it
-      let useAlignment = false;
-      const cacheKey = text.trim();
-      
-      try {
-        // Check cache first
-        let alignmentData = alignmentCache.get(cacheKey);
-        
-        if (!alignmentData) {
-          // Fetch with timeout if not cached
-          const ttsUrl = `/api/tts?text=${encodeURIComponent(text)}&alignment=true${voiceId ? `&voiceId=${voiceId}` : ''}`;
-          const alignmentResponse = await Promise.race([
-            fetch(ttsUrl),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)) // 3s timeout
-          ]) as Response;
-          
-          if (alignmentResponse.ok) {
-            alignmentData = await alignmentResponse.json();
-            // Cache the result if it has proper alignment data
-            if (alignmentData?.alignment?.characters && alignmentData?.audio_base64) {
-              alignmentCache.set(cacheKey, alignmentData);
-            }
-          }
-        }
-        
-        // Check if we have valid alignment data
-        if (alignmentData?.alignment?.characters && alignmentData?.audio_base64) {
-          const words = extractWordsFromAlignment(alignmentData.alignment, text);
-          if (words.length > 0) {
-            console.log('Using ElevenLabs alignment for precise highlighting');
-            setWordTimings(words);
-            
-            // Convert base64 audio to blob URL
-            const audioBlob = new Blob([Uint8Array.from(atob(alignmentData.audio_base64), c => c.charCodeAt(0))], { type: 'audio/mpeg' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            audioRef.current.src = audioUrl;
-            useAlignment = true;
-          }
-        }
-      } catch (error) {
-        console.log('Alignment request failed:', error);
-      }
-      
-      // Fallback to regular audio if alignment failed
-      if (!useAlignment) {
-        console.log('Using fallback estimated timing for highlighting');
-        const src = `/api/tts?text=${encodeURIComponent(text)}${voiceId ? `&voiceId=${voiceId}` : ''}`;
-        audioRef.current.src = src;
-        
-        // Create better estimated word timings based on word length and speech patterns
-        const words = text.split(/\s+/).filter(w => w.trim().length > 0);
-        const baseWordsPerSecond = 2.2; // Slightly slower for better accuracy
-        let currentTime = 0.3; // Small delay at start
-        
-        const estimatedTimings = words.map((word, i) => {
-          // Adjust timing based on word characteristics
-          let wordDuration = 1 / baseWordsPerSecond;
-          
-          // Longer words take more time
-          if (word.length > 6) wordDuration *= 1.3;
-          else if (word.length < 3) wordDuration *= 0.8;
-          
-          // Punctuation adds a pause
-          if (word.match(/[.!?]$/)) wordDuration *= 1.4;
-          else if (word.match(/[,;:]$/)) wordDuration *= 1.2;
-          
-          const startTime = currentTime;
-          const endTime = currentTime + wordDuration;
-          currentTime = endTime + 0.05; // Small gap between words
-          
-          return {
-            word: word,
-            start: startTime,
-            end: endTime
-          };
-        });
-        
-        setWordTimings(estimatedTimings);
-      }
+      // Use regular audio without alignment to reduce costs
+      console.log('Using standard TTS without text highlighting');
+      const src = `/api/tts?text=${encodeURIComponent(text)}${voiceId ? `&voiceId=${voiceId}` : ''}`;
+      audioRef.current.src = src;
       
       // Set up event handlers before loading
       audioRef.current.onended = () => {
@@ -459,6 +353,18 @@ export default function StoryReader({ pages, childName, title, voiceId, language
         setCurrentWordIndex(-1);
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
+        }
+        
+        // Auto-scroll to next page after TTS finishes (if enabled and not on last page)
+        console.log(`ElevenLabs TTS ended. autoScroll: ${autoScroll}, index: ${index}, totalPages: ${renderedPages.length}`);
+        if (autoScroll && index < renderedPages.length - 1) {
+          setTimeout(() => {
+            console.log('Auto-advancing to next page');
+            setIsPageChanging(true);
+            setIndex(prevIndex => prevIndex + 1);
+          }, 1500); // 1.5 second delay before auto-advance
+        } else {
+          console.log('Auto-advance not triggered - either autoScroll is false or on last page');
         }
       };
       
@@ -468,17 +374,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
         setCurrentWordIndex(-1);
       };
       
-      // Set up word highlighting during playback
-      audioRef.current.ontimeupdate = () => {
-        if (audioRef.current && wordTimings.length > 0) {
-          const currentTime = audioRef.current.currentTime;
-          // Update highlighting more frequently for better responsiveness
-          if (currentTime - lastUpdateTimeRef.current >= 0.02) { // 50fps updates
-            updateWordHighlight(currentTime);
-            lastUpdateTimeRef.current = currentTime;
-          }
-        }
-      };
+      // No word highlighting - removed to reduce costs
       
       // iOS-specific: Wait for the audio to be ready before playing
       const playAudio = () => {
@@ -492,7 +388,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
           
           // Set playback rate after loading
           const onCanPlay = () => {
-            audio.playbackRate = 0.95;
+            audio.playbackRate = 1.15; // Increased from 0.95 to 1.15 for faster reading
             audio.removeEventListener('canplay', onCanPlay);
             audio.removeEventListener('error', onError);
             resolve();
@@ -521,7 +417,20 @@ export default function StoryReader({ pages, childName, title, voiceId, language
     } catch (error) {
       console.error("TTS API failed, falling back to browser speech:", error);
       // Fallback to browser speech synthesis
-      speakWithBrowserTTS(text);
+      try {
+        speakWithBrowserTTS(text);
+      } catch (browserError) {
+        console.error("Browser TTS also failed:", browserError);
+        setSpeaking(false);
+        // Still trigger auto-scroll even if TTS fails
+        if (autoScroll && index < renderedPages.length - 1) {
+          setTimeout(() => {
+            console.log('Auto-advancing to next page (TTS failed)');
+            setIsPageChanging(true);
+            setIndex(prevIndex => prevIndex + 1);
+          }, 2000);
+        }
+      }
     }
   }
 
@@ -561,51 +470,31 @@ export default function StoryReader({ pages, childName, title, voiceId, language
   }, []);
 
   // Autoplay when page index changes (after first user gesture)
-  // Disabled on iOS devices due to autoplay restrictions
   useEffect(() => {
-    if (!autoPlay) return;
+    if (!autoPlay || !autoScroll) return;
     
-    // Skip autoplay on iOS devices
-    const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS && index > 0) {
-      // On iOS, don't autoplay when changing pages - user must tap play button
-      return;
-    }
-    
-    const page = current;
-    if (page && page.text) {
-      speak(page.text);
-    }
-  }, [index, autoPlay, current]);
-
-  // Pre-cache next page audio for faster page turns
-  useEffect(() => {
-    const nextIndex = index + 1;
-    if (nextIndex < renderedPages.length) {
-      const nextPage = renderedPages[nextIndex];
-      if (nextPage?.text) {
-        const nextCacheKey = nextPage.text.trim();
-        if (!alignmentCache.has(nextCacheKey)) {
-          // Pre-fetch alignment data in background
-          const preCacheUrl = `/api/tts?text=${encodeURIComponent(nextPage.text)}&alignment=true${voiceId ? `&voiceId=${voiceId}` : ''}`;
-          fetch(preCacheUrl)
-            .then(response => {
-              if (response.ok) {
-                return response.json();
-              }
-            })
-            .then(alignmentData => {
-              if (alignmentData?.alignment && alignmentData?.audio_base64) {
-                alignmentCache.set(nextCacheKey, alignmentData);
-              }
-            })
-            .catch(() => {
-              // Ignore pre-cache failures
-            });
-        }
+    // Auto-play during automatic page changes OR manual navigation after auto-scroll is enabled
+    if (isPageChanging) {
+      const page = current;
+      if (page && page.text) {
+        console.log(`Auto-playing page ${index + 1} after auto-advance`);
+        speak(page.text);
+      }
+      
+      // Reset the page changing flag
+      setIsPageChanging(false);
+    } else if (index > 0 && !speaking) {
+      // If user manually navigated and auto-scroll is enabled, auto-play
+      const page = current;
+      if (page && page.text) {
+        console.log(`Auto-playing page ${index + 1} after manual navigation`);
+        speak(page.text);
       }
     }
-  }, [index, renderedPages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]); // Only depend on index changes
+
+  // Pre-cache disabled to reduce API costs
 
   function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     const t = e.touches[0];
@@ -645,6 +534,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
     const first = renderedPages[0];
     setIndex(0);
     setAutoPlay(true);
+    setAutoScroll(true); // Enable auto-scroll when restarting
     if (first?.text) {
       speak(first.text);
     }
@@ -660,26 +550,24 @@ export default function StoryReader({ pages, childName, title, voiceId, language
       </div>
 
       <section 
-        className={`${atkinson.className} story-reader-layout`}
-        style={{ 
-          display: "grid", 
-          gridTemplateColumns: "40% 60%", 
-          gridTemplateRows: "1fr",
-          gap: 16, // Gap between text and image columns
-          alignItems: "stretch", 
-          position: "relative",
-          height: "100vh", // Use viewport height
-          width: "100vw", // Use viewport width
-          padding: "4px", // Reduced padding
-          maxHeight: "100vh",
-          maxWidth: "100vw",
-          overflow: "hidden",
-          boxSizing: "border-box",
-          margin: 0
-        }}
-        onTouchStart={onTouchStart} 
-        onTouchEnd={onTouchEnd}
-      >
+  className={`${atkinson.className} story-reader-layout`}
+  style={{ 
+    display: "grid", 
+    gridTemplateColumns: "30% 70%", // Use fr units instead of "30fr 70fr"
+    gridTemplateRows: "1fr",
+    gap: 16,
+    alignItems: "stretch", 
+    position: "relative",
+    height: "100vh",
+    width: "100%", // Changed from 100vw to 100%
+    padding: "4px",
+    maxHeight: "100vh",
+    overflow: "hidden",
+    margin: 0
+  }}
+  onTouchStart={onTouchStart} 
+  onTouchEnd={onTouchEnd}
+>
       {/* Exit (X) button - top-right */}
       <Link 
         href="/" 
@@ -690,40 +578,19 @@ export default function StoryReader({ pages, childName, title, voiceId, language
         aria-label="Exit story" 
         style={closeBtn as React.CSSProperties}
       >
-        <img src="/icons/close.svg" alt="Close" width={18} height={18} />
+        <X size={18} />
       </Link>
       {/* Left: text column */}
-      <div style={{ display: "flex", flexDirection: "column", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px 20px", height: "100%", minHeight: "0" }}>
+      <div style={{ display: "flex", flexDirection: "column", padding: "16px 20px", width: "auto"}}>
         {/* Title */}
         {typeof title === "string" && title.length > 0 ? (
           <h2 style={{ fontSize: 20, fontWeight: 700, color: "#7c3aed", marginBottom: 16 }}>{title}</h2>
         ) : <div style={{ height: 8 }} />}
 
-        {/* Page text with word highlighting */}
+        {/* Page text without highlighting */}
         <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
           <div data-allow-select style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 20 }}>
-            {wordTimings.length > 0 ? (
-              // Render with word-level highlighting
-              wordTimings.map((wordData, i) => (
-                <span
-                  key={i}
-                  style={{
-                    backgroundColor: i === currentWordIndex ? "#fef3c7" : "transparent", // Yellow highlight
-                    color: i === currentWordIndex ? "#92400e" : "inherit", // Darker text when highlighted
-                    padding: "2px 1px",
-                    borderRadius: "3px",
-                    transition: "all 0.15s ease-in-out",
-                    boxShadow: i === currentWordIndex ? "0 0 0 2px #fbbf24" : "none", // Subtle glow
-                  }}
-                >
-                  {wordData.word}
-                  {i < wordTimings.length - 1 ? " " : ""}
-                </span>
-              ))
-            ) : (
-              // Fallback to regular text if no timing data
-              current.text
-            )}
+            {current.text}
           </div>
       </div>
 
@@ -734,43 +601,61 @@ export default function StoryReader({ pages, childName, title, voiceId, language
             {languageSelector}
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Pagination just left of the back button */}
-            <div style={{ fontSize: 12, color: "#6b7280", marginRight: 8 }}>page {index + 1} of {renderedPages.length}</div>
-        <button
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            {/* Pagination just left of the buttons */}
+            <div style={{ fontSize: 14, color: "#6b7280", marginRight: 8 }}>Page {index + 1} of {renderedPages.length}</div>
+            
+            {/* Restart button - only show on page 2 onwards */}
+            {index > 0 && (
+              <button 
+                onClick={restartFromBeginning}
+                onTouchStart={handleButtonTouchStart}
+                onTouchEnd={(e) => handleButtonTouchEnd(e, restartFromBeginning)}
+                onTouchCancel={handleButtonTouchCancel}
+                style={iconBtn} 
+                aria-label="Restart"
+              >
+                <RotateCcw size={20} />
+              </button>
+            )}
+            
+            {/* Previous button */}
+            <button
+              onClick={() => {
+                cancelSpeech(); // Stop current audio
+                setIndex((i) => Math.max(0, i - 1));
+              }}
               onTouchStart={handleButtonTouchStart}
-              onTouchEnd={(e) => handleButtonTouchEnd(e, () => setIndex((i) => Math.max(0, i - 1)))}
+              onTouchEnd={(e) => handleButtonTouchEnd(e, () => {
+                cancelSpeech(); // Stop current audio
+                setIndex((i) => Math.max(0, i - 1));
+              })}
               onTouchCancel={handleButtonTouchCancel}
               style={iconBtn}
-              aria-label="Back"
-          disabled={index === 0}
-        >
-              <img src="/icons/back.svg" alt="Back" width={20} height={20} />
-        </button>
-        {!speaking ? (
-              index === renderedPages.length - 1 ? (
-                <button 
-                  onClick={restartFromBeginning}
-                  onTouchStart={handleButtonTouchStart}
-                  onTouchEnd={(e) => handleButtonTouchEnd(e, restartFromBeginning)}
-                  onTouchCancel={handleButtonTouchCancel}
-                  style={iconBtn} 
-                  aria-label="Restart"
-                >
-                  <img src="/icons/restart.svg" alt="Restart" width={20} height={20} />
-          </button>
-        ) : (
-                <button 
-                  onClick={() => speak(current.text)}
-                  onTouchStart={handleButtonTouchStart}
-                  onTouchEnd={(e) => handleButtonTouchEnd(e, () => speak(current.text))}
-                  onTouchCancel={handleButtonTouchCancel}
-                  style={iconBtn} 
-                  aria-label="Read"
-                >
-                  <img src="/icons/read.svg" alt="Read" width={20} height={20} />
-                </button>
-              )
+              aria-label="Previous"
+              disabled={index === 0}
+            >
+              <ChevronLeft size={20} />
+            </button>
+            
+            {/* Play/Pause button */}
+            {!speaking ? (
+              <button 
+                onClick={() => {
+                  console.log('Play button clicked - enabling auto-scroll');
+                  setAutoScroll(true); // Enable auto-scroll on first play
+                  speak(current.text);
+                }}
+                onTouchStart={handleButtonTouchStart}
+                onTouchEnd={(e) => handleButtonTouchEnd(e, () => {
+                  setAutoScroll(true); // Enable auto-scroll on first play
+                  speak(current.text);
+                })}
+                onTouchCancel={handleButtonTouchCancel}
+                style={iconBtn} 
+                aria-label="Play"
+              >
+                <Play size={20} />
+              </button>
             ) : (
               <button 
                 onClick={cancelSpeech}
@@ -780,14 +665,16 @@ export default function StoryReader({ pages, childName, title, voiceId, language
                 style={iconBtn} 
                 aria-label="Pause"
               >
-                <img src="/icons/pause.svg" alt="Pause" width={20} height={20} />
-          </button>
-        )}
-        <button
-          onClick={() => {
+                <Pause size={20} />
+              </button>
+            )}
+            
+            {/* Next button */}
+            <button
+              onClick={() => {
                 // advance page
                 const nextIdx = Math.min(renderedPages.length - 1, index + 1);
-            cancelSpeech();
+                cancelSpeech();
                 setIndex(nextIdx);
                 
                 // Check if we're on iOS
@@ -834,16 +721,16 @@ export default function StoryReader({ pages, childName, title, voiceId, language
               aria-label="Next"
               disabled={index === renderedPages.length - 1}
             >
-              <img src="/icons/next.svg" alt="Next" width={20} height={20} />
-        </button>
+              <ChevronRight size={20} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Right: image column */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "0" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "auto" }}>
         {current.imageUrl ? (
-          <img src={current.imageUrl} alt="Story page illustration" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 12, border: "1px solid #e5e7eb", maxHeight: "100vh" }} />
+          <img src={current.imageUrl} alt="Story page illustration" style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
         ) : null}
       </div>
     </section>
@@ -851,19 +738,11 @@ export default function StoryReader({ pages, childName, title, voiceId, language
   );
 }
 
-const btn: React.CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: "1px solid #111827",
-  background: "white",
-};
-
-const btnPrimary: React.CSSProperties = { ...btn, background: "#111827", color: "white" };
 
 const iconBtn: React.CSSProperties = {
-  width: 36,
-  height: 36,
-  borderRadius: 8,
+  width: 50,
+  height: 50,
+  borderRadius: 12,
   border: "1px solid #e5e7eb",
   background: "white",
   display: "inline-flex",
@@ -877,8 +756,8 @@ const closeBtn = {
   position: "absolute",
   top: 8,
   right: 8,
-  width: 36,
-  height: 36,
+  width: 50,
+  height: 50,
   borderRadius: 9999,
   background: "white",
   border: "1px solid #e5e7eb",
