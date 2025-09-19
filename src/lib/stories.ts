@@ -12,6 +12,7 @@ export type Story = {
   language: string;
   languageCode: string;
   voiceId?: string; // ElevenLabs voice ID for this language
+  templateFallbacks?: Record<string, string>; // Custom fallbacks for template variables
 };
 
 export const stories: Story[] = [
@@ -93,13 +94,16 @@ export const stories: Story[] = [
     title: "Princess visits the Dentist",
     language: "English",
     languageCode: "en",
-    voiceId: "2OEeJcYw2f3bWMzzjVMU", // Clara's voice for English
+    voiceId: "qlnUbSLa6XkXV9pK52QP", // Clara's voice for English
     moral: "Brave checkups keep smiles healthy. Kind helpers and good habits make teeth strong.",
+    templateFallbacks: {
+      childName: "" // No fallback for dentist story - leave empty when no name provided
+    },
     pages: [
       { text: "\"It's time to visit the dentist,\" said Mummy, and she held Princess {{childName}}'s hand.", imageUrl: "/images/dentist-visit/01.png" },
       { text: "They walked into a bright, friendly room. Princess {{childName}} saw a big cozy chair and a light that looked like a tiny sun.", imageUrl: "/images/dentist-visit/02.png" },
       { text: "Princess {{childName}} sat on the dentist chair that goes up and down. 'Hi Princess {{childName}}' entered her dentist Dr. Amy with a smile.", imageUrl: "/images/dentist-visit/03.png" },
-      { text: "Dr Amy put a soft bib around her neck to keep her clothes clean. \"What toothpaste flavor do you want—vanilla, chocolate, or strawberry?\"", imageUrl: "/images/dentist-visit/04.png" },
+      { text: "Dr Amy put a soft bib around her neck to keep her clothes clean. \"What toothpaste flavor would you like—vanilla, chocolate, or strawberry?\"", imageUrl: "/images/dentist-visit/04.png" },
       { text: "\"Have you been brushing and flossing every day?\" Dr. Amy asked. Princess {{childName}} grinned wide and said, \"Yes!\"", imageUrl: "/images/dentist-visit/05.png" },
       { text: "\"Open big like a lion,\" said Dr. Amy. She used a tiny mirror to peek at every tooth and a gentle tooth counter to check for sugar bugs.", imageUrl: "/images/dentist-visit/06.png" },
       { text: "\"Now I'll clean your teeth,\" said Dr. Amy. A tickly cleaner whisked away gunk while a little straw slurped water so Princess {{childName}} stayed comfy.", imageUrl: "/images/dentist-visit/07.png" },

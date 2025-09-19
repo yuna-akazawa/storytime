@@ -553,7 +553,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
   className={`${atkinson.className} story-reader-layout`}
   style={{ 
     display: "grid", 
-    gridTemplateColumns: "30% 70%", // Use fr units instead of "30fr 70fr"
+    gridTemplateColumns: "40% 60%", // Use fr units instead of "30fr 70fr"
     gridTemplateRows: "1fr",
     gap: 16,
     alignItems: "stretch", 
@@ -730,7 +730,7 @@ export default function StoryReader({ pages, childName, title, voiceId, language
       {/* Right: image column */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "auto" }}>
         {current.imageUrl ? (
-          <img src={current.imageUrl} alt="Story page illustration" style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+          <img src={current.imageUrl} alt="Story page illustration" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 12, border: "1px solid #e5e7eb" }} />
         ) : null}
       </div>
     </section>
